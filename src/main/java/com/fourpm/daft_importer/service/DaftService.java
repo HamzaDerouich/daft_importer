@@ -2,6 +2,7 @@ package com.fourpm.daft_importer.service;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BiFunction;
@@ -23,6 +24,7 @@ import com.fourpm.daft.wsclient.SaleResults;
 import com.fourpm.daft.wsclient.SearchQuery;
 import com.fourpm.daft.wsclient.ShorttermAd;
 import com.fourpm.daft.wsclient.ShorttermResults;
+import com.fourpm.daft_importer.model.ImageMedia;
 
 /**
  * Service class for interacting with the Daft SOAP API.
@@ -163,54 +165,106 @@ public class DaftService {
     }
 
     /**
-     * Retrieves a SaleAd property by its ID.
-     * @param id The property ID.
-     * @param apiKey The API key for authentication.
-     * @return Optional containing the SaleAd if found, or empty if not.
+     * Gets all images for a given ad using the Daft SOAP API media method.
+     * @param adType The ad type (e.g., "sale").
+     * @param adId The ad ID.
+     * @param apiKey The API key.
+     * @return List of ImageMedia objects.
      */
-    public Optional<SaleAd> getPropertyById(Long id, String apiKey) { 
+    public List<ImageMedia> getImagesForAd(String adType, Long adId, String apiKey) {
         DaftAPIService_Service service = new DaftAPIService_Service();
         DaftAPIService api = service.getDaftAPIService();
-        List<SaleAd> saleAds = fetchAllPages(apiKey, (key, query) -> adaptSaleResults(api.searchSale(key, query)));
-    
-        return saleAds.stream()
-                .filter(saleAd -> saleAd.getAdId().longValue() == id)
-                .findFirst();
+
+        // Llama al método media y obtiene MediaType1
+        com.fourpm.daft.wsclient.MediaType1 mediaType = api.media(apiKey, adType, BigInteger.valueOf(adId));
+        if (mediaType == null || mediaType.getImages() == null) {
+            return Collections.emptyList();
+        }
+
+        // Filtra imágenes duplicadas por la URL grande (puedes usar otra si lo prefieres)
+        return mediaType.getImages().stream()
+            .map(img -> new ImageMedia(
+                img.getCaption(),
+                img.getLargeUrl(),
+                img.getMediumUrl(),
+                img.getSmallUrl(),
+                img.getIphoneUrl(),
+                img.getIpadSearchUrl(),
+                img.getIpadGalleryUrl(),
+                null
+            ))
+            .filter(img -> img.getLargeUrl() != null) 
+            .distinct()
+            .collect(Collectors.toMap(
+                ImageMedia::getLargeUrl, 
+                img -> img,
+                (img1, img2) -> img1 
+            ))
+            .values()
+            .stream()
+            .collect(Collectors.toList());
     }
 
     /**
-     * Retrieves a list of SaleAd properties by property type.
-     * @param type The property type (e.g., "house", "apartment").
+     * Retrieves a SaleAd property by its ID, including images.
+     * @param id The property ID.
      * @param apiKey The API key for authentication.
-     * @return List of SaleAd matching the given type.
+     * @return Optional containing SaleAdWithImages if found, or empty if not.
      */
-    public List<SaleAd> getPropertiesByType(String type, String apiKey) {
+    public Optional<SaleAdWithImages> getPropertyByIdWithImages(Long id, String apiKey) {
         DaftAPIService_Service service = new DaftAPIService_Service();
         DaftAPIService api = service.getDaftAPIService();
         List<SaleAd> saleAds = fetchAllPages(apiKey, (key, query) -> adaptSaleResults(api.searchSale(key, query)));
-    
+
         return saleAds.stream()
-                .filter(saleAd -> saleAd.getPropertyType().equalsIgnoreCase(type))
-                .collect(Collectors.toList());
+                .filter(saleAd -> saleAd.getAdId().longValue() == id)
+                .findFirst()
+                .map(saleAd -> new SaleAdWithImages(
+                        saleAd,
+                        getImagesForAd("sale", saleAd.getAdId().longValue(), apiKey)
+                ));
     }
-   
+
     /**
-     * Retrieves a list of SaleAd properties within a price range.
+     * Retrieves a list of SaleAd properties within a price range, including images.
      * @param minPrice The minimum price.
      * @param maxPrice The maximum price.
      * @param apiKey The API key for authentication.
-     * @return List of SaleAd within the specified price range.
-     * 
+     * @return List of SaleAdWithImages within the specified price range.
      */
-    public List<SaleAd> getPropertiesByPriceRange(Double minPrice, Double maxPrice, String apiKey) {
+    public List<SaleAdWithImages> getPropertiesByPriceRangeWithImages(Double minPrice, Double maxPrice, String apiKey) {
         DaftAPIService_Service service = new DaftAPIService_Service();
         DaftAPIService api = service.getDaftAPIService();
         List<SaleAd> saleAds = fetchAllPages(apiKey, (key, query) -> adaptSaleResults(api.searchSale(key, query)));
-    
+
         return saleAds.stream()
-                .filter(saleAd -> saleAd.getPrice() != null && saleAd.getPrice().doubleValue() >= minPrice && saleAd.getPrice().doubleValue() <= maxPrice)
+                .filter(saleAd -> saleAd.getPrice() != null
+                        && saleAd.getPrice().doubleValue() >= minPrice
+                        && saleAd.getPrice().doubleValue() <= maxPrice)
+                .map(saleAd -> new SaleAdWithImages(
+                        saleAd,
+                        getImagesForAd("sale", saleAd.getAdId().longValue(), apiKey)
+                ))
                 .collect(Collectors.toList());
     }
 
-    
+    /**
+     * Retrieves a list of SaleAd properties by property type, including images.
+     * @param type The property type (e.g., "house", "apartment").
+     * @param apiKey The API key for authentication.
+     * @return List of SaleAdWithImages matching the given type.
+     */
+    public List<SaleAdWithImages> getPropertiesByTypeWithImages(String type, String apiKey) {
+        DaftAPIService_Service service = new DaftAPIService_Service();
+        DaftAPIService api = service.getDaftAPIService();
+        List<SaleAd> saleAds = fetchAllPages(apiKey, (key, query) -> adaptSaleResults(api.searchSale(key, query)));
+
+        return saleAds.stream()
+                .filter(saleAd -> saleAd.getPropertyType().equalsIgnoreCase(type))
+                .map(saleAd -> new SaleAdWithImages(
+                        saleAd,
+                        getImagesForAd("sale", saleAd.getAdId().longValue(), apiKey)
+                ))
+                .collect(Collectors.toList());
+    }
 }
