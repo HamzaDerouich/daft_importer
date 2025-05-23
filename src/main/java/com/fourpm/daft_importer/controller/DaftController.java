@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.fourpm.daft_importer.service.DaftService;
 import com.fourpm.daft_importer.service.PropertyListResult;
-import com.fourpm.daft_importer.service.SaleAdWithImages;
+import com.fourpm.daft_importer.service.SaleAdWithMedia;
 
 @RestController
 @RequestMapping("/api/daft")
@@ -34,7 +34,7 @@ public class DaftController {
     }
 
     @GetMapping("/properties/{id}")
-    public ResponseEntity<SaleAdWithImages> getPropertyById(
+    public ResponseEntity<SaleAdWithMedia> getPropertyById(
             @PathVariable Long id,
             @RequestParam String apiKey) {
 
@@ -42,13 +42,13 @@ public class DaftController {
             return ResponseEntity.badRequest().build();
         }
 
-        return daftService.getPropertyByIdWithImages(id, apiKey)
+        return daftService.getPropertyByIdWithMedia(id, apiKey)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/properties/type")
-    public ResponseEntity<List<SaleAdWithImages>> getPropertiesByType(
+    public ResponseEntity<List<SaleAdWithMedia>> getPropertiesByType(
             @RequestParam String type,
             @RequestParam String apiKey) {
 
@@ -56,7 +56,7 @@ public class DaftController {
             return ResponseEntity.badRequest().build();
         }
 
-        List<SaleAdWithImages> properties = daftService.getPropertiesByTypeWithImages(type, apiKey);
+        List<SaleAdWithMedia> properties = daftService.getPropertiesByTypeWithMedia(type, apiKey);
         if (properties.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
@@ -64,7 +64,7 @@ public class DaftController {
     }
 
     @GetMapping("/properties/price-range")
-    public ResponseEntity<List<SaleAdWithImages>> getPropertiesByPriceRange(
+    public ResponseEntity<List<SaleAdWithMedia>> getPropertiesByPriceRange(
             @RequestParam Double minPrice,
             @RequestParam Double maxPrice,
             @RequestParam String apiKey) {
@@ -73,7 +73,7 @@ public class DaftController {
             return ResponseEntity.badRequest().build();
         }
 
-        List<SaleAdWithImages> properties = daftService.getPropertiesByPriceRangeWithImages(minPrice, maxPrice, apiKey);
+        List<SaleAdWithMedia> properties = daftService.getPropertiesByPriceRangeWithMedia(minPrice, maxPrice, apiKey);
         if (properties.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
