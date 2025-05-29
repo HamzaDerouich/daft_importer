@@ -74,7 +74,12 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
-
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<version>1.18.38</version>
+			<scope>provided</scope>
+		</dependency>
 	</dependencies>
 	<build>
 		<plugins>
@@ -140,6 +145,8 @@
 							<bindingFiles>
 								<bindingFile>${project.basedir}/src/main/resources/binding.xjb</bindingFile>
 							</bindingFiles>
+							<!-- Add this line -->
+							<wsdlLocation>http://api.daft.ie/v2/wsdl.xml</wsdlLocation>
 							<packageName>com.fourpm.daft.wsclient</packageName>
 							<keep>true</keep>
 							<extension>true</extension>
